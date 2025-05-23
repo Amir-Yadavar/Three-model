@@ -12,9 +12,9 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera.position.z = 2;
-camera.position.y = 2;
-camera.position.x = -1;
+camera.position.z = -4;
+camera.position.y =2;
+camera.position.x = 0;
 const gridHelper = new THREE.GridHelper(15, 15, 0xfff);
 
 // cube or object
@@ -28,6 +28,48 @@ const geometry = new THREE.BoxGeometry(1, 1, 1);
 //   specular: 0xffffff,
 //   shininess: 200,
 // });
+
+// move camera
+const speed = 0.1;
+
+document.addEventListener("keydown", (e) => {
+  const forward = new THREE.Vector3();
+  const right = new THREE.Vector3();
+
+  camera.getWorldDirection(forward);
+  
+  right.crossVectors(forward, camera.up);
+
+  switch (e.key) {
+    case "w":
+      {
+        camera.position.addScaledVector(forward, speed);
+        controls.target.addScaledVector(forward, speed);
+      }
+      break;
+    case "s":
+      {
+        camera.position.addScaledVector(forward, -speed);
+        controls.target.addScaledVector(forward, -speed);
+      }
+      break;
+    case "d":
+      {
+        camera.position.addScaledVector(right, speed);
+        controls.target.addScaledVector(right, speed);
+      }
+      break;
+    case "a":
+      {
+        camera.position.addScaledVector(right, -speed);
+        controls.target.addScaledVector(right, -speed);
+      }
+      break;
+
+    default:
+      break;
+  }
+});
 
 // meshStandardMaterial
 const material = new THREE.MeshStandardMaterial({
@@ -54,20 +96,31 @@ const meatTexture = textureLoader.load("/img/texture/meat.jpg");
 
 // 3D models
 const gltfLoader = new GLTFLoader();
-gltfLoader.load("/models/burger.glb", (gltf) => {
-  const model = gltf.scene;
-  scene.add(model);
+gltfLoader.load("/models/WOOD_WALL.glb", (gltf) => {
+  const orginalModel = gltf.scene;
 
-  model.traverse((child) => {
-    if (child.name === "Cylinder_3") {
-      child.material = new THREE.MeshStandardMaterial({
-        map: meatTexture,
-        // roughness: woodGrayRoughnessTexture,
-        normalMap: woodGrayNormalTexture,
-      });
-    }
-    console.log(child);
-  });
+  function createWall (position,rotation){
+    const model = orginalModel.clone()
+    model.position.copy(position)
+    model.rotation.y=rotation
+
+    return model
+  }
+
+  const wall1 = createWall(new THREE.Vector3(0,0,0),Math.PI/2)
+  const wall2 = createWall(new THREE.Vector3(2.5,0,-2.2),Math.PI)
+  const wall3 = createWall(new THREE.Vector3(-2.3,0,-2.2),Math.PI)
+  scene.add(wall1,wall2,wall3);
+
+  // model.traverse((child) => {
+  //   if (child.name === "Cylinder_3") {
+  //     child.material = new THREE.MeshStandardMaterial({
+  //       map: meatTexture,
+  //       // roughness: woodGrayRoughnessTexture,
+  //       normalMap: woodGrayNormalTexture,
+  //     });
+  //   }
+  // });
 });
 
 // floor geometry
