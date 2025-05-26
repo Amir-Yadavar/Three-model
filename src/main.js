@@ -12,8 +12,8 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera.position.z = -4;
-camera.position.y =2;
+camera.position.z = -15;
+camera.position.y = 5;
 camera.position.x = 0;
 const gridHelper = new THREE.GridHelper(15, 15, 0xfff);
 
@@ -37,7 +37,7 @@ document.addEventListener("keydown", (e) => {
   const right = new THREE.Vector3();
 
   camera.getWorldDirection(forward);
-  
+
   right.crossVectors(forward, camera.up);
 
   switch (e.key) {
@@ -96,21 +96,21 @@ const meatTexture = textureLoader.load("/img/texture/meat.jpg");
 
 // 3D models
 const gltfLoader = new GLTFLoader();
-gltfLoader.load("/models/WOOD_WALL.glb", (gltf) => {
+gltfLoader.load("/models/burger.glb", (gltf) => {
   const orginalModel = gltf.scene;
 
-  function createWall (position,rotation){
-    const model = orginalModel.clone()
-    model.position.copy(position)
-    model.rotation.y=rotation
+  function createBurger(position, rotation) {
+    const model = orginalModel.clone();
+    model.position.copy(position);
+    model.rotation.y = rotation;
 
-    return model
+    return model;
   }
 
-  const wall1 = createWall(new THREE.Vector3(0,0,0),Math.PI/2)
-  const wall2 = createWall(new THREE.Vector3(2.5,0,-2.2),Math.PI)
-  const wall3 = createWall(new THREE.Vector3(-2.3,0,-2.2),Math.PI)
-  scene.add(wall1,wall2,wall3);
+  const burger1 = createBurger(new THREE.Vector3(0, 0, 0), Math.PI / 2);
+  const burger2 = createBurger(new THREE.Vector3(2.5, 0, -2.2), Math.PI);
+  const burger3 = createBurger(new THREE.Vector3(-2.3, 0, -2.2), Math.PI);
+  scene.add(burger1, burger2, burger3);
 
   // model.traverse((child) => {
   //   if (child.name === "Cylinder_3") {
@@ -123,12 +123,63 @@ gltfLoader.load("/models/WOOD_WALL.glb", (gltf) => {
   // });
 });
 
+// create wall
+const wallHeight = 3;
+const wallGeometry = new THREE.BoxGeometry(20, wallHeight, 0.2);
+const wallMaterial = new THREE.MeshStandardMaterial({
+  color: 0xcccccc,
+  roughness: 2,
+});
+
+const frontWall = new THREE.Mesh(wallGeometry, wallMaterial);
+frontWall.position.set(0, wallHeight / 2, 10);
+
+const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+backWall.position.set(0, wallHeight / 2, -10);
+
+const rightWall = new THREE.Mesh(wallGeometry, wallMaterial);
+rightWall.rotation.y = Math.PI / 2;
+rightWall.position.set(10, wallHeight / 2, 0);
+
+const leftWall = new THREE.Mesh(wallGeometry, wallMaterial);
+leftWall.rotation.y = Math.PI / 2;
+leftWall.position.s;
+leftWall.position.set(-10, wallHeight / 2, 0);
+
+scene.add(frontWall, backWall, rightWall, leftWall);
+
+// create roof
+
+const roofGeometry = new THREE.PlaneGeometry(19.8, 19.8);
+// const roofMaterial = new THREE.MeshStandardMaterial({
+//   color: 0xcccccc,
+//   roughness: 2,
+//   side: THREE.DoubleSide,
+// });
+const roofMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0xcccccc,
+  metalness: 0,
+  roughness: 0,
+  transmission:1,
+  thickness:0.5,
+   opacity: 1,
+  ior: 1, // ضریب شکست نور شیشه
+  clearcoat: 1,
+  clearcoatRoughness: 0,
+  side:THREE.DoubleSide
+});
+const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+roof.rotation.x =- Math.PI / 2;
+roof.position.y = wallHeight ;
+scene.add(roof);
+
 // floor geometry
 const floorGeometry = new THREE.PlaneGeometry(20, 20);
 const floorMaterial = new THREE.MeshStandardMaterial({
   map: woodGrayTexture,
   roughness: woodGrayRoughnessTexture,
   normalMap: woodGrayNormalTexture,
+  side: THREE.DoubleSide,
 });
 
 const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -136,8 +187,8 @@ floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
 // ambientLight
-// const ambientLight = new THREE.AmbientLight(0xffffff,1)
-// scene.add(ambientLight)
+const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+scene.add(ambientLight);
 
 // pointLight
 // const pointLight = new THREE.PointLight(0xffffff,2,0)
