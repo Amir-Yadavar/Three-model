@@ -13,7 +13,7 @@ const camera = new THREE.PerspectiveCamera(
   1000
 );
 camera.position.z = -15;
-camera.position.y = 5;
+camera.position.y = 8;
 camera.position.x = 0;
 const gridHelper = new THREE.GridHelper(15, 15, 0xfff);
 
@@ -96,7 +96,7 @@ const meatTexture = textureLoader.load("/img/texture/meat.jpg");
 
 // 3D models
 const gltfLoader = new GLTFLoader();
-gltfLoader.load("/models/burger.glb", (gltf) => {
+gltfLoader.load("./models/burger.glb", (gltf) => {
   const orginalModel = gltf.scene;
 
   function createBurger(position, rotation) {
@@ -121,6 +121,24 @@ gltfLoader.load("/models/burger.glb", (gltf) => {
   //     });
   //   }
   // });
+});
+
+// light switch
+gltfLoader.load("./models/light_switch.glb", (gltf) => {
+  const model = gltf.scene;
+  model.scale.set(4, 4, 4);
+  model.rotateY(Math.PI);
+  model.position.set(0, 2, 9.9);
+  scene.add(model);
+
+  model.traverse((child) => {
+    console.log(child)
+    if (child.name === "light_switch") {
+      child.material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+      });
+    }
+  });
 });
 
 // create wall
@@ -160,17 +178,17 @@ const roofMaterial = new THREE.MeshPhysicalMaterial({
   color: 0xcccccc,
   metalness: 0,
   roughness: 0,
-  transmission:1,
-  thickness:0.5,
-   opacity: 1,
+  transmission: 1,
+  thickness: 0.5,
+  opacity: 2,
   ior: 1, // ضریب شکست نور شیشه
-  clearcoat: 1,
+  clearcoat: 0,
   clearcoatRoughness: 0,
-  side:THREE.DoubleSide
+  side: THREE.DoubleSide,
 });
 const roof = new THREE.Mesh(roofGeometry, roofMaterial);
-roof.rotation.x =- Math.PI / 2;
-roof.position.y = wallHeight ;
+roof.rotation.x = -Math.PI / 2;
+roof.position.y = wallHeight;
 scene.add(roof);
 
 // floor geometry
@@ -187,7 +205,7 @@ floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
 // ambientLight
-const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
 scene.add(ambientLight);
 
 // pointLight
@@ -201,7 +219,7 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 const directionalLightHelper = new THREE.DirectionalLightHelper(
   directionalLight
 );
-directionalLight.position.set(5, 5, 5);
+directionalLight.position.set(0, 5, 0);
 scene.add(directionalLight, directionalLightHelper);
 
 // spotLight
