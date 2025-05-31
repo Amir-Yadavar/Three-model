@@ -123,6 +123,15 @@ gltfLoader.load("./models/burger.glb", (gltf) => {
   // });
 });
 
+// RayCaster
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+const clickableSwitch = [];
+let lampRoof = null;
+let isLightOn = true;
+
 // light switch
 gltfLoader.load("./models/light_switch.glb", (gltf) => {
   const model = gltf.scene;
@@ -132,13 +141,56 @@ gltfLoader.load("./models/light_switch.glb", (gltf) => {
   scene.add(model);
 
   model.traverse((child) => {
-    console.log(child)
     if (child.name === "light_switch") {
+      clickableSwitch.push(child);
       child.material = new THREE.MeshStandardMaterial({
         color: 0xffffff,
       });
     }
   });
+});
+
+gltfLoader.load("./models/Lamp_CIrcle.glb", (gltf) => {
+  const model = gltf.scene;
+  model.position.set(0, 3, 0);
+  scene.add(model);
+
+  model.traverse((child) => {
+    // console.log(child);
+    if (child.name === "Cylinder_1") {
+      lampRoof = child;
+      child.material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        
+      });
+    }
+  });
+});
+
+window.addEventListener("click", (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  const hits = raycaster.intersectObjects(scene.children, true);
+  const switchHit = hits.find((h) => h.object.name === "light_switch");
+
+  if (switchHit) {
+    isLightOn = !isLightOn;
+    directionalLight.visible = isLightOn;
+
+    if (!lampRoof) {
+      console.warn("lampRoof هنوز مقدار نگرفته!");
+      return; // جلوتر نرو
+    }
+    if (isLightOn) {
+      lampRoof.material.color.set(0xffffff);
+    } else {
+      lampRoof.material.color.set(0x000000);
+    }
+    lampRoof.material.needsUpdate = true;
+  }
 });
 
 // create wall
@@ -220,7 +272,7 @@ const directionalLightHelper = new THREE.DirectionalLightHelper(
   directionalLight
 );
 directionalLight.position.set(0, 5, 0);
-scene.add(directionalLight, directionalLightHelper);
+scene.add(directionalLight);
 
 // spotLight
 // const spotLight = new THREE.SpotLight(0xffffff, 1, 0,Math.PI / 3);
