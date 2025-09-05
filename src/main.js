@@ -12,7 +12,7 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   1000
 );
-camera.position.set(-2, 15, -30);
+camera.position.set(-2, 15, -15);
 
 // renderer
 const renderer = new THREE.WebGLRenderer();
@@ -38,24 +38,53 @@ const saratogaGLTF = async () => {
     "./models/car/chrysler_saratoga_1960.glb"
   );
   saratogaModel.scale.set(0.01, 0.01, 0.01);
-  saratogaModel.position.set(3, 0, 0);
-  saratogaModel.rotation.y = Math.PI;
+  saratogaModel.position.set(-11, 0, 3);
+  saratogaModel.rotation.y = Math.PI / 2;
 
   scene.add(saratogaModel);
 };
+
+let mercedesModel;
 const mercedesGLTF = async () => {
-  const mercedesModel = await loadModel(
+  mercedesModel = await loadModel(
     "./models/car/mercedes-benz_slr_mclaren_2005.glb"
   );
   mercedesModel.scale.set(0.01, 0.01, 0.01);
-  mercedesModel.position.set(0, 0, 0);
-  mercedesModel.rotation.y = Math.PI / 2;
+  mercedesModel.position.set(-3, 0, -14);
+  // mercedesModel.rotation.y = -Math.PI / 2;
 
   scene.add(mercedesModel);
 };
 
 mercedesGLTF();
 saratogaGLTF();
+
+const lineCurveMercedesOne = new THREE.LineCurve3(
+  new THREE.Vector3(-3, 0, -14),
+  new THREE.Vector3(-3, 0, -2)
+);
+
+const points = lineCurveMercedesOne.getPoints(5);
+const geometry = new THREE.BufferGeometry().setFromPoints(points);
+const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+const debugLine = new THREE.Line(geometry, material);
+scene.add(debugLine);
+
+const quadraticCurveMercedes = new THREE.QuadraticBezierCurve3(
+  new THREE.Vector3(-3, 0, -2),
+  new THREE.Vector3(0, 0, 3),
+  new THREE.Vector3(6, 0, 3)
+);
+
+const createHelperMercedesQuadratic = () => {
+  const points = quadraticCurveMercedes.getPoints(5);
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+  const debugLine = new THREE.Line(geometry, material);
+  scene.add(debugLine);
+};
+
+createHelperMercedesQuadratic()
 
 // orbit controlls
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -274,10 +303,24 @@ pointLight.position.set(2, 5, 2);
 const pointLightHelper = new THREE.PointLightHelper(pointLight);
 // scene.add(pointLight,pointLightHelper)
 
+let progressMercedesLine1 = 0;
 // animate func
 
 function animate() {
   requestAnimationFrame(animate);
+
+  if (mercedesModel) {
+    progressMercedesLine1 += 0.002; // سرعت حرکت
+    if (progressMercedesLine1 > 1) progressMercedesLine1 = 1;
+    const point = lineCurveMercedesOne.getPointAt(progressMercedesLine1); // نقطه‌ی فعلی روی مسیر
+    const nextPoint = lineCurveMercedesOne.getPointAt(
+      (progressMercedesLine1 + 0.01) % 1
+    ); // نقطه‌ی کمی جلوتر برای جهت
+    mercedesModel.lookAt(nextPoint);
+    mercedesModel.rotation.y -= Math.PI / 2;
+    mercedesModel.position.copy(point);
+  }
+
   controls.update();
   renderer.render(scene, camera);
 }
