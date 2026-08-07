@@ -1,165 +1,125 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { GLTFLoader } from "three/examples/jsm/Addons.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-// scene
+// scene --------------------------
+
 const scene = new THREE.Scene();
 
-// camera
+// sizes ----------------------------
+
+const sizes = {
+  width: window.innerWidth,
+  height: window.innerHeight,
+};
+
+// camera ----------------------------
+
 const camera = new THREE.PerspectiveCamera(
   75,
-  window.innerWidth / window.innerHeight,
+  sizes.width / sizes.height,
   0.1,
-  1000
+  1000,
 );
-camera.position.set(-2, 15, -15);
+camera.position.set(0, 15, 20);
 
-// renderer
+// renderer --------------------------
+
 const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(sizes.width, sizes.height);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-// gltf
+// orbit controlls ----------------------
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+
+// resize browser ---------------------
+
+window.addEventListener("resize", (e) => {
+  // update sizes
+  sizes.width = window.innerWidth;
+  sizes.height = window.innerHeight;
+
+  // update camera
+  camera.aspect = sizes.width / sizes.height;
+  camera.updateProjectionMatrix();
+
+  // update renderer
+  renderer.setSize(sizes.width, sizes.height);
+});
+
+// gltf loader and load model ---------------
+
 const gltfLoader = new GLTFLoader();
 
+// Promisified load function
 const loadModel = (url) => {
   return new Promise((resolve, reject) => {
     gltfLoader.load(
       url,
       (gltf) => resolve(gltf.scene),
       undefined,
-      (error) => reject(error)
+      (error) => reject(error),
     );
   });
 };
 
-const saratogaGLTF = async () => {
-  const saratogaModel = await loadModel(
-    "./models/car/chrysler_saratoga_1960.glb"
-  );
-  saratogaModel.scale.set(0.01, 0.01, 0.01);
-  saratogaModel.position.set(-11, 0, 3);
-  saratogaModel.rotation.y = Math.PI / 2;
+let saratogaModel, mercedesModel;
 
-  scene.add(saratogaModel);
+const setupCarModel = (model, scale, position, rotationY) => {
+  model.scale.set(scale, scale, scale);
+  model.position.set(position.x, position.y, position.z);
+  model.rotation.y = rotationY;
+
+  // فعال‌سازی سایه‌ها برای تمام اجزای ماشین
+  model.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+
+  scene.add(model);
 };
 
-let mercedesModel;
-const mercedesGLTF = async () => {
-  mercedesModel = await loadModel(
-    "./models/car/mercedes-benz_slr_mclaren_2005.glb"
-  );
-  mercedesModel.scale.set(0.01, 0.01, 0.01);
-  mercedesModel.position.set(-3, 0, -14);
-  // mercedesModel.rotation.y = -Math.PI / 2;
+const initCars = async () => {
+  try {
+    const [saratogaScene, mercedesScene] = await Promise.all([
+      loadModel("./models/car/chrysler_saratoga_1960.glb"),
+      loadModel("./models/car/mercedes-benz_slr_mclaren_2005.glb"),
+    ]);
 
-  scene.add(mercedesModel);
-};
+    saratogaModel = saratogaScene;
+    setupCarModel(saratogaModel, 0.01, { x: -11, y: 0, z: 3 }, Math.PI / 2);
 
-mercedesGLTF();
-saratogaGLTF();
-
-const lineCurveMercedesOne = new THREE.LineCurve3(
-  new THREE.Vector3(-3, 0, -14),
-  new THREE.Vector3(-3, 0, -2)
-);
-
-const points = lineCurveMercedesOne.getPoints(5);
-const geometry = new THREE.BufferGeometry().setFromPoints(points);
-const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
-const debugLine = new THREE.Line(geometry, material);
-scene.add(debugLine);
-
-const quadraticCurveMercedes = new THREE.QuadraticBezierCurve3(
-  new THREE.Vector3(-3, 0, -2),
-  new THREE.Vector3(0, 0, 3),
-  new THREE.Vector3(6, 0, 3)
-);
-
-const createHelperMercedesQuadratic = () => {
-  const points = quadraticCurveMercedes.getPoints(5);
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
-  const material = new THREE.LineBasicMaterial({ color: 0x00ff00 });
-  const debugLine = new THREE.Line(geometry, material);
-  scene.add(debugLine);
-};
-
-createHelperMercedesQuadratic()
-
-// orbit controlls
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
-
-// move camera
-
-const speed = 0.2;
-
-window.addEventListener("keydown", (e) => {
-  const forward = new THREE.Vector3();
-  const right = new THREE.Vector3();
-
-  camera.getWorldDirection(forward);
-  // forward.y = 0
-  forward.normalize();
-
-  right.crossVectors(forward, camera.up).normalize();
-
-  let moveVector = new THREE.Vector3();
-
-  switch (e.key.toLowerCase()) {
-    case "w":
-      moveVector.copy(forward).multiplyScalar(speed);
-      break;
-    case "s":
-      moveVector.copy(forward).multiplyScalar(-speed);
-      break;
-    case "d":
-      moveVector.copy(right).multiplyScalar(speed);
-      break;
-    case "a":
-      moveVector.copy(right).multiplyScalar(-speed);
-      break;
-    case "q":
-      moveVector.copy(camera.up).multiplyScalar(-speed);
-      break;
-    case "e":
-      moveVector.copy(camera.up).multiplyScalar(speed);
-      break;
-    default:
-      return;
+    mercedesModel = mercedesScene;
+    setupCarModel(mercedesModel, 0.01, { x: -3, y: 0, z: -14 }, 0);
+  } catch (error) {
+    console.error("خطا در بارگذاری مدل‌های سه بعدی:", error);
   }
+};
 
-  camera.position.add(moveVector);
-});
+initCars();
+// light --------------------------------------
 
-// click on model
+// ambient light
+const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+scene.add(ambientLight);
 
-const raycaster = new THREE.Raycaster();
-
-const mouse = new THREE.Vector3();
-
-window.addEventListener("click", (e) => {
-  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-
-  raycaster.setFromCamera(mouse, camera);
-
-  const hits = raycaster.intersectObjects(scene.children, true);
-  console.log(hits);
-});
-
-// texture
+// textures ------------------------------------
 
 const textureLoader = new THREE.TextureLoader();
 const asphaltTexture = textureLoader.load(
-  "./img/texture/Asphalt/Asphalt026C_1K-JPG_Color.jpg"
+  "./img/texture/Asphalt/Asphalt026C_1K-JPG_Color.jpg",
 );
 const asphaltRoughTexture = textureLoader.load(
-  "./img/texture/Asphalt/Asphalt026C_1K-JPG_Roughness.jpg"
+  "./img/texture/Asphalt/Asphalt026C_1K-JPG_Roughness.jpg",
 );
 const asphaltNormalTexture = textureLoader.load(
-  "./img/texture/Asphalt/Asphalt026C_1K-JPG_NormalDX.jpg"
+  "./img/texture/Asphalt/Asphalt026C_1K-JPG_NormalDX.jpg",
 );
 
 // access texture for repeat
@@ -178,7 +138,8 @@ asphaltTexture.anisotropy = maxAniso;
 asphaltNormalTexture.anisotropy = maxAniso;
 asphaltRoughTexture.anisotropy = maxAniso;
 
-// create floor or planeGeometry
+// create floor or planeGeometry --------------------
+
 const planeGeometry = new THREE.PlaneGeometry(30, 30);
 const planeMaterial = new THREE.MeshStandardMaterial({
   map: asphaltTexture,
@@ -191,134 +152,143 @@ const floor = new THREE.Mesh(planeGeometry, planeMaterial);
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-// func for create solid line for avenue
-function createSolidLine(width, height, color) {
-  const geometry = new THREE.PlaneGeometry(width, height);
-  const materil = new THREE.MeshBasicMaterial({
-    color,
+// func for create solid line for avenue ----------------------
+
+function createSolidLineSegment(width, length) {
+  const geometry = new THREE.PlaneGeometry(width, length);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
     side: THREE.DoubleSide,
   });
 
-  const solidLine = new THREE.Mesh(geometry, materil);
-  return solidLine;
-}
-
-const solidLine = createSolidLine(10, 0.2, 0xffffff);
-solidLine.rotation.x = Math.PI / 2;
-solidLine.position.y = 0.08;
-
-const bottomRightLine = solidLine.clone();
-bottomRightLine.rotation.z = Math.PI / 2;
-bottomRightLine.position.z = -10;
-bottomRightLine.position.x = -5;
-
-const bottomleftLine = solidLine.clone();
-bottomleftLine.rotation.z = Math.PI / 2;
-bottomleftLine.position.z = -10;
-bottomleftLine.position.x = 5;
-
-const upRightLine = solidLine.clone();
-upRightLine.rotation.z = Math.PI / 2;
-upRightLine.position.z = 10;
-upRightLine.position.x = -5;
-
-const upleftLine = solidLine.clone();
-upleftLine.rotation.z = Math.PI / 2;
-upleftLine.position.z = 10;
-upleftLine.position.x = 5;
-
-const rightUpLine = solidLine.clone();
-rightUpLine.position.x = -10;
-rightUpLine.position.z = 5;
-
-const rightBottomLine = solidLine.clone();
-rightBottomLine.position.x = -10;
-rightBottomLine.position.z = -5;
-
-const leftUpLine = solidLine.clone();
-leftUpLine.position.x = 10;
-leftUpLine.position.z = 5;
-
-const leftBottomLine = solidLine.clone();
-leftBottomLine.position.x = 10;
-leftBottomLine.position.z = -5;
-
-scene.add(
-  bottomRightLine,
-  bottomleftLine,
-  rightUpLine,
-  rightBottomLine,
-  upRightLine,
-  upleftLine,
-  leftBottomLine,
-  leftUpLine
-);
-
-function createDasheLine(width, height, color) {
-  const geometry = new THREE.PlaneGeometry(width, height);
-  const materil = new THREE.MeshBasicMaterial({
-    color,
-    side: THREE.DoubleSide,
-  });
-
-  const line = new THREE.Mesh(geometry, materil);
-  line.rotation.x = -Math.PI / 2; // بخوابه روی زمین
-  line.position.y = 0.01; // کمی بالاتر از زمین
+  const line = new THREE.Mesh(geometry, material);
+  line.rotation.x = -Math.PI / 2;
+  line.position.y = 0.02;
   return line;
 }
-// dash for bottom
-for (let z = -14.5; z < -5; z += 2) {
-  const dashBottom = createDasheLine(1, 0.4, 0xffffff);
-  dashBottom.rotation.z = Math.PI / 2;
-  dashBottom.position.z = z;
-  scene.add(dashBottom);
-}
-// dash for up
-for (let z = 14.5; z > 5; z -= 2) {
-  const dashUp = createDasheLine(1, 0.4, 0xffffff);
-  dashUp.rotation.z = Math.PI / 2;
-  dashUp.position.z = z;
-  scene.add(dashUp);
-}
-// dash for right
-for (let x = -14.5; x < -5; x += 2) {
-  const dashRight = createDasheLine(1, 0.4, 0xffffff);
-  dashRight.position.x = x;
-  scene.add(dashRight);
-}
-// dash for left
-for (let x = 14.5; x > 5; x -= 2) {
-  const dashleft = createDasheLine(1, 0.4, 0xffffff);
-  dashleft.position.x = x;
-  scene.add(dashleft);
+
+[-10, 10].forEach((zPos) => {
+  const leftLine = createSolidLineSegment(0.2, 10);
+  leftLine.position.set(-5, 0.02, zPos);
+
+  const rightLine = createSolidLineSegment(0.2, 10);
+  rightLine.position.set(5, 0.02, zPos);
+
+  scene.add(leftLine, rightLine);
+});
+
+[-10, 10].forEach((xPos) => {
+  const bottomLine = createSolidLineSegment(10, 0.2);
+  bottomLine.position.set(xPos, 0.02, -5);
+
+  const topLine = createSolidLineSegment(10, 0.2);
+  topLine.position.set(xPos, 0.02, 5);
+
+  scene.add(bottomLine, topLine);
+});
+
+// dashed line ----------------------------------
+
+function createDashSegment(width, length) {
+  const geometry = new THREE.PlaneGeometry(width, length);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    side: THREE.DoubleSide,
+  });
+
+  const dash = new THREE.Mesh(geometry, material);
+  dash.rotation.x = -Math.PI / 2;
+  dash.position.y = 0.01;
+  return dash;
 }
 
-// ambient light
-const ambientLight = new THREE.AmbientLight(0xffffff, 1);
-scene.add(ambientLight);
+for (let z = 5.5; z <= 14.5; z += 2) {
+  const dashNorth = createDashSegment(0.4, 1);
+  dashNorth.position.z = z;
 
-// pointLight
-const pointLight = new THREE.PointLight(0xffffff, 5);
-pointLight.position.set(2, 5, 2);
-const pointLightHelper = new THREE.PointLightHelper(pointLight);
-// scene.add(pointLight,pointLightHelper)
+  const dashSouth = createDashSegment(0.4, 1);
+  dashSouth.position.z = -z;
 
-let progressMercedesLine1 = 0;
-// animate func
+  scene.add(dashNorth, dashSouth);
+}
+
+for (let x = 5.5; x <= 14.5; x += 2) {
+  const dashEast = createDashSegment(1, 0.4);
+  dashEast.position.x = x;
+
+  const dashWest = createDashSegment(1, 0.4);
+  dashWest.position.x = -x;
+
+  scene.add(dashEast, dashWest);
+}
+
+// ==========================================
+// مسیر یکپارچه مرسدس (از شمال به شرق)
+// ==========================================
+
+const mercedesPath = new THREE.CurvePath();
+
+// ۱. خط مستقیم از شمال تا ورودی چهارراه
+const lineStraight = new THREE.LineCurve3(
+  new THREE.Vector3(-3, 0, -14),
+  new THREE.Vector3(-3, 0, -2)
+);
+
+// ۲. منحنی دور زدن به سمت خیابان شرقی (راست)
+const curveTurn = new THREE.QuadraticBezierCurve3(
+  new THREE.Vector3(-3, 0, -2), // شروع پیچ
+  new THREE.Vector3(-3, 0, 3),  // نقطه اهرم و کنترل پیچ (هندل)
+  new THREE.Vector3(6, 0, 3)    // پایان پیچ در خیابان شرقی
+);
+
+// ۳. حرکت مستقیم تا انتهای خیابان شرقی (اصلاحیه جدید)
+const lineEast = new THREE.LineCurve3(
+  new THREE.Vector3(6, 0, 3),
+  new THREE.Vector3(15, 0, 3)   // تا انتها خیابان شرقی
+);
+
+// اتصال دو مسیر به یک ریل یکپارچه
+mercedesPath.add(lineStraight);
+mercedesPath.add(curveTurn);
+mercedesPath.add(lineEast);
+
+// ------------------------------------------
+// خط دیباگ (نمایش مسیر قرمز رنگ)
+// ------------------------------------------
+const pathPoints = mercedesPath.getPoints(50);
+const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
+const pathMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+const debugPath = new THREE.Line(pathGeometry, pathMaterial);
+scene.add(debugPath);
+
+// ------------------------------------------
+// انیمیشن حرکت مرسدس
+// ------------------------------------------
+let progressMercedes = 0;
+const speed = 0.0010; // سرعت حرکت روی مسیر (قابل تنظیم)
 
 function animate() {
   requestAnimationFrame(animate);
 
   if (mercedesModel) {
-    progressMercedesLine1 += 0.002; // سرعت حرکت
-    if (progressMercedesLine1 > 1) progressMercedesLine1 = 1;
-    const point = lineCurveMercedesOne.getPointAt(progressMercedesLine1); // نقطه‌ی فعلی روی مسیر
-    const nextPoint = lineCurveMercedesOne.getPointAt(
-      (progressMercedesLine1 + 0.01) % 1
-    ); // نقطه‌ی کمی جلوتر برای جهت
-    mercedesModel.lookAt(nextPoint);
-    mercedesModel.rotation.y -= Math.PI / 2;
-    mercedesModel.position.copy(point);
+    // ۱. پیشروی روی مسیر (Loop شدن حرکت)
+    progressMercedes += speed;
+    if (progressMercedes > 1) progressMercedes = 0; // وقتی رسید تهش، دوباره از اول بیاد
+
+    // ۲. محاسبه نقطه فعلی و نقطه یک قدم بعد
+    const currentPoint = mercedesPath.getPointAt(progressMercedes);
+    // point کمی جلوتر برای این که ماشین بفهمه رو به کجاست
+    const nextPointIndex = Math.min(progressMercedes + 0.005, 1);
+    const targetPoint = mercedesPath.getPointAt(nextPointIndex);
+
+    // ۳. تغییر موقعیت ماشین
+    mercedesModel.position.copy(currentPoint);
+
+    // ۴. نگاه کردن ماشین به نقطه بعدی مسیر
+    mercedesModel.lookAt(targetPoint);
+    mercedesModel.rotateY(-Math.PI / 2);
+    // اگر محور جلو مدل ماشین شما اشتباه بود، اصلاح زاویه فقط با این خط انجام میشه:
+    // mercedesModel.rotateY(Math.PI / 2); 
   }
 
   controls.update();
