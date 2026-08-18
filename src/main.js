@@ -36,6 +36,8 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
+controls.maxPolarAngle = Math.PI / 2.3
+
 // resize browser ---------------------
 
 window.addEventListener("resize", (e) => {
@@ -230,7 +232,7 @@ const mercedesPath = new THREE.CurvePath();
 
 // ۱. خط مستقیم از شمال تا ورودی چهارراه
 const lineStraight = new THREE.LineCurve3(
-  new THREE.Vector3(-3, 0, -14),
+  new THREE.Vector3(-3, 0, -20),
   new THREE.Vector3(-3, 0, -2)
 );
 
@@ -244,7 +246,7 @@ const curveTurn = new THREE.QuadraticBezierCurve3(
 // ۳. حرکت مستقیم تا انتهای خیابان شرقی (اصلاحیه جدید)
 const lineEast = new THREE.LineCurve3(
   new THREE.Vector3(6, 0, 3),
-  new THREE.Vector3(15, 0, 3)   // تا انتها خیابان شرقی
+  new THREE.Vector3(20, 0, 3)   // تا انتها خیابان شرقی
 );
 
 // اتصال دو مسیر به یک ریل یکپارچه
@@ -288,7 +290,15 @@ function animate() {
     mercedesModel.lookAt(targetPoint);
     mercedesModel.rotateY(-Math.PI / 2);
     // اگر محور جلو مدل ماشین شما اشتباه بود، اصلاح زاویه فقط با این خط انجام میشه:
-    // mercedesModel.rotateY(Math.PI / 2); 
+
+    // --------------------------------------------------------
+    // car mercedes visible in exist scene
+    // --------------------------------------------------------
+    if (Math.abs(currentPoint.x) > 16.5 || Math.abs(currentPoint.z) > 16.5) {
+      mercedesModel.visible = false;
+    } else {
+      mercedesModel.visible = true;
+    }
   }
 
   controls.update();
