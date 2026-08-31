@@ -1,6 +1,11 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import GUI from "lil-gui"
+
+// GUI
+const gui =new GUI()
+
 
 // scene --------------------------
 
@@ -36,7 +41,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 
-controls.maxPolarAngle = Math.PI / 2.3
+controls.maxPolarAngle = Math.PI / 2.3;
 
 // resize browser ---------------------
 
@@ -95,7 +100,7 @@ const initCars = async () => {
     ]);
 
     saratogaModel = saratogaScene;
-    setupCarModel(saratogaModel, 0.01, { x: -11, y: 0, z: 3 }, Math.PI / 2);
+    setupCarModel(saratogaModel, 0.01, { x: -20, y: 0, z: 3 }, Math.PI / 2);
 
     mercedesModel = mercedesScene;
     setupCarModel(mercedesModel, 0.01, { x: -3, y: 0, z: -14 }, 0);
@@ -105,6 +110,28 @@ const initCars = async () => {
 };
 
 initCars();
+
+// load house
+
+let house_1;
+
+const initHouse = async () => {
+  try {
+    const [house_scene] = await Promise.all([
+      loadModel("./models/house/house_1.glb"),
+    ]);
+
+    house_1 = house_scene;
+    scene.add(house_1)
+
+    gui.add(house_1.position , "x").min(0).max(10).step(0.01)
+    gui.add(house_1.position , "z").min(0).max(10).step(0.01)
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+initHouse();
 // light --------------------------------------
 
 // ambient light
@@ -225,7 +252,7 @@ for (let x = 5.5; x <= 14.5; x += 2) {
 }
 
 // ==========================================
-// مسیر یکپارچه مرسدس (از شمال به شرق)
+// mercedes path from north to east
 // ==========================================
 
 const mercedesPath = new THREE.CurvePath();
@@ -233,76 +260,131 @@ const mercedesPath = new THREE.CurvePath();
 // ۱. خط مستقیم از شمال تا ورودی چهارراه
 const lineStraight = new THREE.LineCurve3(
   new THREE.Vector3(-3, 0, -20),
-  new THREE.Vector3(-3, 0, -2)
+  new THREE.Vector3(-3, 0, -2),
 );
 
 // ۲. منحنی دور زدن به سمت خیابان شرقی (راست)
 const curveTurn = new THREE.QuadraticBezierCurve3(
   new THREE.Vector3(-3, 0, -2), // شروع پیچ
-  new THREE.Vector3(-3, 0, 3),  // نقطه اهرم و کنترل پیچ (هندل)
-  new THREE.Vector3(6, 0, 3)    // پایان پیچ در خیابان شرقی
+  new THREE.Vector3(-3, 0, 3), // نقطه اهرم و کنترل پیچ (هندل)
+  new THREE.Vector3(6, 0, 3), // پایان پیچ در خیابان شرقی
 );
 
-// ۳. حرکت مستقیم تا انتهای خیابان شرقی (اصلاحیه جدید)
 const lineEast = new THREE.LineCurve3(
   new THREE.Vector3(6, 0, 3),
-  new THREE.Vector3(20, 0, 3)   // تا انتها خیابان شرقی
+  new THREE.Vector3(20, 0, 3),
 );
 
-// اتصال دو مسیر به یک ریل یکپارچه
 mercedesPath.add(lineStraight);
 mercedesPath.add(curveTurn);
 mercedesPath.add(lineEast);
 
-// ------------------------------------------
-// خط دیباگ (نمایش مسیر قرمز رنگ)
-// ------------------------------------------
-const pathPoints = mercedesPath.getPoints(50);
-const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
-const pathMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
-const debugPath = new THREE.Line(pathGeometry, pathMaterial);
-scene.add(debugPath);
+// ==========================================
+// saratogaModel path from west to north
+// ==========================================
+
+const saratogaPath = new THREE.CurvePath();
+
+// straight path to  center avenu
+const lineStraightsaratoga = new THREE.LineCurve3(
+  new THREE.Vector3(-20, 0, 3),
+  new THREE.Vector3(-1, 0, 3),
+);
+
+const curveTurnsaratoga = new THREE.QuadraticBezierCurve3(
+  new THREE.Vector3(-1, 0, 3),
+  new THREE.Vector3(3, 0, 3),
+  new THREE.Vector3(3, 0, -1),
+);
+
+const lineNorthsaratoga = new THREE.LineCurve3(
+  new THREE.Vector3(3, 0, -1),
+  new THREE.Vector3(3, 0, -20),
+);
+
+saratogaPath.add(lineStraightsaratoga);
+saratogaPath.add(curveTurnsaratoga);
+saratogaPath.add(lineNorthsaratoga);
 
 // ------------------------------------------
 // انیمیشن حرکت مرسدس
 // ------------------------------------------
 let progressMercedes = 0;
-const speed = 0.0010; // سرعت حرکت روی مسیر (قابل تنظیم)
+let progressSaratoga = 0;
+const speed = 0.001;
+
+// نقطه خط ایست ساراتوگا قبل از چهارراه (مثلاً ۵۰٪ مسیرش)
+// این نقطه دقیقاً جایی است که ماشین پشت خط کشی ایست می‌افتد
+const SARATOGA_STOP_POINT = 0.32;
 
 function animate() {
   requestAnimationFrame(animate);
 
+  // --------------------------------------------------------
+  // ۱. محاسبه موقعیت لحظه‌ای مرسدس
+  // --------------------------------------------------------
+  let isIntersectionBusy = false;
+
   if (mercedesModel) {
-    // ۱. پیشروی روی مسیر (Loop شدن حرکت)
     progressMercedes += speed;
-    if (progressMercedes > 1) progressMercedes = 0; // وقتی رسید تهش، دوباره از اول بیاد
+    if (progressMercedes > 1) progressMercedes = 0;
 
-    // ۲. محاسبه نقطه فعلی و نقطه یک قدم بعد
     const currentPoint = mercedesPath.getPointAt(progressMercedes);
-    // point کمی جلوتر برای این که ماشین بفهمه رو به کجاست
-    const nextPointIndex = Math.min(progressMercedes + 0.005, 1);
-    const targetPoint = mercedesPath.getPointAt(nextPointIndex);
+    const targetPoint = mercedesPath.getPointAt(
+      Math.min(progressMercedes + 0.005, 1),
+    );
 
-    // ۳. تغییر موقعیت ماشین
     mercedesModel.position.copy(currentPoint);
-
-    // ۴. نگاه کردن ماشین به نقطه بعدی مسیر
     mercedesModel.lookAt(targetPoint);
     mercedesModel.rotateY(-Math.PI / 2);
-    // اگر محور جلو مدل ماشین شما اشتباه بود، اصلاح زاویه فقط با این خط انجام میشه:
 
-    // --------------------------------------------------------
-    // car mercedes visible in exist scene
-    // --------------------------------------------------------
+    // کنترل دید
     if (Math.abs(currentPoint.x) > 16.5 || Math.abs(currentPoint.z) > 16.5) {
       mercedesModel.visible = false;
     } else {
       mercedesModel.visible = true;
+    }
+
+    // بررسی: آیا مرسدس الان داخل حریم مرکز چهارراه است؟
+    // (محدوده بین x:-8 تا 8 و z:-8 تا 8)
+
+    if (Math.abs(currentPoint.x) < 8 && Math.abs(currentPoint.z) < 8) {
+      isIntersectionBusy = true;
+    }
+  }
+
+  //  انیمیشن ساراتوگا (با منطق حق تقدم و خط ایست)
+
+  if (saratogaModel) {
+    // اگر ساراتوگا نزدیک ورودی چهارراه رسیده و چهارراه پر است -> بایستد
+    const isAtStopLine =
+      Math.abs(progressSaratoga - SARATOGA_STOP_POINT) < 0.01;
+
+    if (isAtStopLine && isIntersectionBusy) {
+      // ساراتوگا متوقف می‌شود (progress زیاد نمی‌شود)
+    } else {
+      // در غیر این صورت به حرکت خود ادامه می‌دهد
+      progressSaratoga += speed;
+    }
+
+    if (progressSaratoga > 1) progressSaratoga = 0;
+
+    const currentPoint = saratogaPath.getPointAt(progressSaratoga);
+    const targetPoint = saratogaPath.getPointAt(
+      Math.min(progressSaratoga + 0.005, 1),
+    );
+
+    saratogaModel.position.copy(currentPoint);
+    saratogaModel.lookAt(targetPoint);
+
+    if (Math.abs(currentPoint.x) > 16.5 || Math.abs(currentPoint.z) > 16.5) {
+      saratogaModel.visible = false;
+    } else {
+      saratogaModel.visible = true;
     }
   }
 
   controls.update();
   renderer.render(scene, camera);
 }
-
 animate();
