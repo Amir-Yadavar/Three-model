@@ -1,11 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import GUI from "lil-gui"
+import GUI from "lil-gui";
 
 // GUI
-const gui =new GUI()
-
+const gui = new GUI();
 
 // scene --------------------------
 
@@ -76,7 +75,7 @@ const loadModel = (url) => {
 
 let saratogaModel, mercedesModel;
 
-const setupCarModel = (model, scale, position, rotationY) => {
+const setupModel = (model, scale, position, rotationY) => {
   model.scale.set(scale, scale, scale);
   model.position.set(position.x, position.y, position.z);
   model.rotation.y = rotationY;
@@ -100,10 +99,10 @@ const initCars = async () => {
     ]);
 
     saratogaModel = saratogaScene;
-    setupCarModel(saratogaModel, 0.01, { x: -20, y: 0, z: 3 }, Math.PI / 2);
+    setupModel(saratogaModel, 0.01, { x: -20, y: 0, z: 3 }, Math.PI / 2);
 
     mercedesModel = mercedesScene;
-    setupCarModel(mercedesModel, 0.01, { x: -3, y: 0, z: -14 }, 0);
+    setupModel(mercedesModel, 0.01, { x: -3, y: 0, z: -14 }, 0);
   } catch (error) {
     console.error("خطا در بارگذاری مدل‌های سه بعدی:", error);
   }
@@ -113,19 +112,40 @@ initCars();
 
 // load house
 
-let house_1;
+let house_1Model;
+let house_2Model;
+
+
 
 const initHouse = async () => {
   try {
-    const [house_scene] = await Promise.all([
+    const [house_1scene,house_2scene] = await Promise.all([
       loadModel("./models/house/house_1.glb"),
+      loadModel("./models/house/house_2.glb"),
     ]);
 
-    house_1 = house_scene;
-    scene.add(house_1)
+    house_1Model = house_1scene;
+    house_2Model = house_2scene;
+    setupModel(house_1Model,8.5,{x:11 ,y:0,z:-12},0 )
+    setupModel(house_2Model,8.5,{x:-11 ,y:0,z:-12},0 )
 
-    gui.add(house_1.position , "x").min(0).max(10).step(0.01)
-    gui.add(house_1.position , "z").min(0).max(10).step(0.01)
+   gui.add(house_1Model.position, "x").min(-20).max(20).step(0.01).name("House X");
+    gui.add(house_1Model.position, "y").min(0).max(20).step(0.01).name("House Y");
+    gui.add(house_2Model.rotation, "y").min(0).max(20).step(0.01).name("House rotate Y");
+    gui.add(house_1Model.position, "z").min(-20).max(20).step(0.01).name("House Z")
+    const scaleController = { size: 8 }; // یک متغیر واسط
+
+    gui
+      .add(scaleController, "size")
+      .min(0.001)
+      .max(10)
+      .step(0.01)
+      .name("House Scale")
+      .onChange((value) => {
+        if (house_1Model) {
+          house_1Model.scale.set(value, value, value);
+        }
+      });
   } catch (error) {
     console.log(error);
   }
