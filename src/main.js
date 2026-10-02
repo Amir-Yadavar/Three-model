@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
+import { loadModel, setupModel } from "./modelLoader";
+import { createRoadMarkings } from "./roadLines";
 
 // GUI
 const gui = new GUI();
@@ -57,40 +58,12 @@ window.addEventListener("resize", (e) => {
   renderer.setSize(sizes.width, sizes.height);
 });
 
-// gltf loader and load model ---------------
-
-const gltfLoader = new GLTFLoader();
-
-// Promisified load function
-const loadModel = (url) => {
-  return new Promise((resolve, reject) => {
-    gltfLoader.load(
-      url,
-      (gltf) => resolve(gltf.scene),
-      undefined,
-      (error) => reject(error),
-    );
-  });
-};
+//  load model -----------------------
 
 let saratogaModel, mercedesModel;
+let house_1Model, house_2Model, house_3Model, house_4Model;
 
-const setupModel = (model, scale, position, rotationY) => {
-  model.scale.set(scale, scale, scale);
-  model.position.set(position.x, position.y, position.z);
-  model.rotation.y = rotationY;
-
-  // فعال‌سازی سایه‌ها برای تمام اجزای ماشین
-  model.traverse((child) => {
-    if (child.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
-  });
-
-  scene.add(model);
-};
-
+//  load cars
 const initCars = async () => {
   try {
     const [saratogaScene, mercedesScene] = await Promise.all([
@@ -98,60 +71,59 @@ const initCars = async () => {
       loadModel("./models/car/mercedes-benz_slr_mclaren_2005.glb"),
     ]);
 
-    saratogaModel = saratogaScene;
-    setupModel(saratogaModel, 0.01, { x: -20, y: 0, z: 3 }, Math.PI / 2);
-
-    mercedesModel = mercedesScene;
-    setupModel(mercedesModel, 0.01, { x: -3, y: 0, z: -14 }, 0);
+    saratogaModel = setupModel(
+      scene,
+      saratogaScene,
+      0.01,
+      { x: -20, y: 0, z: 3 },
+      Math.PI / 2,
+    );
+    mercedesModel = setupModel(
+      scene,
+      mercedesScene,
+      0.01,
+      { x: -3, y: 0, z: -14 },
+      0,
+    );
   } catch (error) {
-    console.error("خطا در بارگذاری مدل‌های سه بعدی:", error);
+    console.error("error in load cars :", error);
   }
 };
 
-initCars();
-
 // load house
-
-let house_1Model;
-let house_2Model;
-
-
 
 const initHouse = async () => {
   try {
-    const [house_1scene,house_2scene] = await Promise.all([
+    const [h1Base, h2Base] = await Promise.all([
       loadModel("./models/house/house_1.glb"),
       loadModel("./models/house/house_2.glb"),
     ]);
 
-    house_1Model = house_1scene;
-    house_2Model = house_2scene;
-    setupModel(house_1Model,8.5,{x:11 ,y:0,z:-12},0 )
-    setupModel(house_2Model,8.5,{x:-11 ,y:0,z:-12},0 )
-
-   gui.add(house_1Model.position, "x").min(-20).max(20).step(0.01).name("House X");
-    gui.add(house_1Model.position, "y").min(0).max(20).step(0.01).name("House Y");
-    gui.add(house_2Model.rotation, "y").min(0).max(20).step(0.01).name("House rotate Y");
-    gui.add(house_1Model.position, "z").min(-20).max(20).step(0.01).name("House Z")
-    const scaleController = { size: 8 }; // یک متغیر واسط
-
-    gui
-      .add(scaleController, "size")
-      .min(0.001)
-      .max(10)
-      .step(0.01)
-      .name("House Scale")
-      .onChange((value) => {
-        if (house_1Model) {
-          house_1Model.scale.set(value, value, value);
-        }
-      });
+    house_1Model = setupModel(scene, h1Base, 8.5, { x: 11, y: 0, z: -12 }, 0);
+    house_2Model = setupModel(scene, h2Base, 8.5, { x: -11, y: 0, z: -12 }, 0);
+    house_3Model = setupModel(
+      scene,
+      h2Base.clone(),
+      8.5,
+      { x: 11, y: 0, z: 12 },
+      Math.PI,
+    );
+    house_4Model = setupModel(
+      scene,
+      h1Base.clone(),
+      8.5,
+      { x: -11, y: 0, z: 12 },
+      Math.PI,
+    );
   } catch (error) {
-    console.log(error);
+    console.error("error in load house :", error);
   }
 };
 
+initCars();
 initHouse();
+
+
 // light --------------------------------------
 
 // ambient light
@@ -201,75 +173,10 @@ const floor = new THREE.Mesh(planeGeometry, planeMaterial);
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
-// func for create solid line for avenue ----------------------
 
-function createSolidLineSegment(width, length) {
-  const geometry = new THREE.PlaneGeometry(width, length);
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    side: THREE.DoubleSide,
-  });
+// create solid and dashed lines
 
-  const line = new THREE.Mesh(geometry, material);
-  line.rotation.x = -Math.PI / 2;
-  line.position.y = 0.02;
-  return line;
-}
-
-[-10, 10].forEach((zPos) => {
-  const leftLine = createSolidLineSegment(0.2, 10);
-  leftLine.position.set(-5, 0.02, zPos);
-
-  const rightLine = createSolidLineSegment(0.2, 10);
-  rightLine.position.set(5, 0.02, zPos);
-
-  scene.add(leftLine, rightLine);
-});
-
-[-10, 10].forEach((xPos) => {
-  const bottomLine = createSolidLineSegment(10, 0.2);
-  bottomLine.position.set(xPos, 0.02, -5);
-
-  const topLine = createSolidLineSegment(10, 0.2);
-  topLine.position.set(xPos, 0.02, 5);
-
-  scene.add(bottomLine, topLine);
-});
-
-// dashed line ----------------------------------
-
-function createDashSegment(width, length) {
-  const geometry = new THREE.PlaneGeometry(width, length);
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    side: THREE.DoubleSide,
-  });
-
-  const dash = new THREE.Mesh(geometry, material);
-  dash.rotation.x = -Math.PI / 2;
-  dash.position.y = 0.01;
-  return dash;
-}
-
-for (let z = 5.5; z <= 14.5; z += 2) {
-  const dashNorth = createDashSegment(0.4, 1);
-  dashNorth.position.z = z;
-
-  const dashSouth = createDashSegment(0.4, 1);
-  dashSouth.position.z = -z;
-
-  scene.add(dashNorth, dashSouth);
-}
-
-for (let x = 5.5; x <= 14.5; x += 2) {
-  const dashEast = createDashSegment(1, 0.4);
-  dashEast.position.x = x;
-
-  const dashWest = createDashSegment(1, 0.4);
-  dashWest.position.x = -x;
-
-  scene.add(dashEast, dashWest);
-}
+createRoadMarkings(scene);
 
 // ==========================================
 // mercedes path from north to east
@@ -333,8 +240,6 @@ let progressMercedes = 0;
 let progressSaratoga = 0;
 const speed = 0.001;
 
-// نقطه خط ایست ساراتوگا قبل از چهارراه (مثلاً ۵۰٪ مسیرش)
-// این نقطه دقیقاً جایی است که ماشین پشت خط کشی ایست می‌افتد
 const SARATOGA_STOP_POINT = 0.32;
 
 function animate() {
@@ -365,18 +270,14 @@ function animate() {
       mercedesModel.visible = true;
     }
 
-    // بررسی: آیا مرسدس الان داخل حریم مرکز چهارراه است؟
-    // (محدوده بین x:-8 تا 8 و z:-8 تا 8)
 
     if (Math.abs(currentPoint.x) < 8 && Math.abs(currentPoint.z) < 8) {
       isIntersectionBusy = true;
     }
   }
 
-  //  انیمیشن ساراتوگا (با منطق حق تقدم و خط ایست)
 
   if (saratogaModel) {
-    // اگر ساراتوگا نزدیک ورودی چهارراه رسیده و چهارراه پر است -> بایستد
     const isAtStopLine =
       Math.abs(progressSaratoga - SARATOGA_STOP_POINT) < 0.01;
 
