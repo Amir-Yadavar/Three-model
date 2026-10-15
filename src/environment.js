@@ -27,6 +27,18 @@ export function createFloor(scene, renderer) {
     "./img/texture/grass/Grass007_1K-JPG_NormalGL.jpg",
   );
 
+  // stone floor
+
+  const stoneFloorTexture = textureLoader.load(
+    "./img/texture/Paving_stones/PavingStones138_1K-JPG_Color.jpg",
+  );
+  const stoneFloorTextureRoughness = textureLoader.load(
+    "./img/texture/Paving_stones/PavingStones138_1K-JPG_Roughness.jpg",
+  );
+  const stoneFloorTextureNormal = textureLoader.load(
+    "./img/texture/Paving_stones/PavingStones138_1K-JPG_NormalGL.jpg",
+  );
+
   [(asphaltTexture, asphaltRoughTexture, asphaltNormalTexture)].forEach(
     (tex) => {
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -70,6 +82,31 @@ export function createFloor(scene, renderer) {
     grassMesh.rotation.x = -Math.PI / 2;
     grassMesh.position.set(pos.x, 0.01, pos.z);
     scene.add(grassMesh);
+  });
+
+  // create stone floor
+  const stoneFloorPlaneGeometry = new THREE.PlaneGeometry(2.5, 4);
+  const stoneFloorMaterial = new THREE.MeshStandardMaterial({
+    map: stoneFloorTexture,
+    normalMap: stoneFloorTextureNormal,
+    roughnessMap: stoneFloorTextureRoughness,
+  });
+
+  const stoneFloorPositon = [
+    { x: 12.5, z: -7.5 },
+    { x: 9.5, z: 7.5 },
+    { x: -9.5, z: -7.5 },
+    { x: -12.5, z: 7.5 },
+  ];
+
+  stoneFloorPositon.forEach((pos) => {
+    const stoneFloor = new THREE.Mesh(
+      stoneFloorPlaneGeometry,
+      stoneFloorMaterial,
+    );
+    stoneFloor.rotation.x = -Math.PI / 2;
+    stoneFloor.position.set(pos.x, 0.02, pos.z);
+    scene.add(stoneFloor);
   });
 
 

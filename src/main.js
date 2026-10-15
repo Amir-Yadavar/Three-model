@@ -1,13 +1,13 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import GUI from "lil-gui";
+// import GUI from "lil-gui";
 import { loadModel, setupModel } from "./modelLoader";
 import { createRoadMarkings } from "./roadLines";
 import { createFloor } from "./environment";
 import { updateTraffic } from "./trafficManager";
 
 // GUI & Setup
-const gui = new GUI();
+// const gui = new GUI();
 const scene = new THREE.Scene();
 
 const sizes = { width: window.innerWidth, height: window.innerHeight };
@@ -37,6 +37,7 @@ createRoadMarkings(scene);
 // Models State
 let saratogaModel, mercedesModel;
 let house_1Model, house_2Model, house_3Model, house_4Model;
+let tree_1Model
 
 const initCars = async () => {
   try {
@@ -68,8 +69,18 @@ const initHouse = async () => {
   }
 };
 
+const initTree = async () =>{
+  try {
+    const treeBase  = await loadModel("./models/tree/tree.gltf")
+    tree_1Model = setupModel(scene,treeBase,1,{ x: 0, y: 0, z: 0 },0)
+  } catch (error) {
+    console.error("error in load tree :", error);
+  }
+}
+
 initCars();
 initHouse();
+initTree();
 
 // Resize Event
 window.addEventListener("resize", () => {
