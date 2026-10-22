@@ -1,9 +1,10 @@
 import GUI from "lil-gui";
 import * as THREE from "three";
+import { loadingManager } from "./utils/LoaderManager";
 // GUI & Setup
 const gui = new GUI();
 export function createFloor(scene, renderer) {
-  const textureLoader = new THREE.TextureLoader();
+  const textureLoader = new THREE.TextureLoader(loadingManager);
 
   //   asphalt texture
   const asphaltTexture = textureLoader.load(
